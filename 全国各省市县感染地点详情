@@ -1,0 +1,152 @@
+import requests
+import os
+import re
+from lxml import etree
+import codecs
+import json
+import pandas as pd
+import xlwt
+import datetime
+# 基本参数
+URL = 'https://m.mp.oeeee.com/data/uploads/PneumoniaArea/json/all_provincecode.json'
+HEADERS = {
+    'accept': 'application/json, text/plain, */*',
+    'accept-encoding': 'gzip, deflate, br',
+    'accept-language': 'zh-CN,zh;q=0.9',
+    'cookie': 'last_view_time=1580974333700; mmp_uid=pc_1580974334674; mmp_token=undefined',
+    'referer': 'https://m.mp.oeeee.com/h5/pages/v20/nCovcase/provincecode.html',
+    'sec-fetch-mode': 'cors',
+    'sec-fetch-site': 'same-origin',
+    'user-agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.88 Safari/537.36',
+    'x-requested-with': 'XMLHttpRequest'
+}
+# DOMAIN = 'http://2019ncov.nosugartech.com'
+NOWTIME = datetime.datetime.strftime(
+    datetime.datetime.now(), '%Y-%m-%d %H-%M-%S')
+NOWTIME_sheet = datetime.datetime.strftime(
+    datetime.datetime.now(), '%Y-%m-%d %H:%M:%S')
+TODAY = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d')
+PATH = r'D:\\海致\excel\\肺炎2020\\%s' % (TODAY)
+
+
+def mkdir(path):
+    # 引入模块
+    import os
+
+    # 去除首位空格
+    path = path.strip()
+    # 去除尾部 \ 符号
+    path = path.rstrip("\\")
+
+    # 判断路径是否存在
+    # 存在     True
+    # 不存在   False
+    isExists = os.path.exists(path)
+
+    # 判断结果
+    if not isExists:
+        # 如果不存在则创建目录
+        # 创建目录操作函数
+        os.makedirs(path)
+        print("创建目录成功")
+        return True
+    else:
+        # 如果目录存在则不创建，并提示目录已存在
+        print("目录已存在")
+        return False
+
+
+def get_list(url, headers, provinceList, sheet1, index): 
+    for provincecode, provincename in provinceList.items():
+
+        url_new = re.sub('provincecode', provincecode, url)
+        headers_new = headers
+        headers_new['referer'] = re.sub('provincecode', provincecode, headers['referer'])
+        print(provincecode + '：' + provincename)
+        # print(url_new)
+        # print(headers_new)
+
+        r = requests.get(url_new, headers=headers_new)
+        r.encoding = 'utf-8'
+        text = r.text
+        # print(text)
+        resDic = json.loads(text)
+        resData = resDic['data']
+
+        # 往表格中填写本次省份的数据
+        for ds in resData:
+            # print(type(str(ds)))
+            # 再遍历地市下的县区
+            for xq in ds['districtList']:
+                # 再遍历县区下的详细地址和对应链接
+                for xxdz in xq['placeList']:
+                    is_today = ''
+                    if xxdz['is_today'] == 1:
+                        is_today = '新'
+                    sheet1.write(index, 0, provincename)
+                    sheet1.write(index, 1, xxdz['city'])
+                    sheet1.write(index, 2, xxdz['district'])
+                    sheet1.write(index, 3, xxdz['street'])
+                    sheet1.write(index, 4, xxdz['place'])
+                    sheet1.write(index, 5, xxdz['location'])
+                    sheet1.write(index, 6, xxdz['source'])
+                    sheet1.write(index, 7, xxdz['link'])
+                    sheet1.write(index, 8, is_today)
+                    index = index + 1    
+    
+
+
+if __name__ == "__main__":
+    provinceList = {
+        'guangdong': '广东',
+        'yunnan': '云南',
+        'henan': '河南',
+        'guizhou': '贵州',
+        'sichuan': '四川',
+        'tianjin': '天津',
+        'anhui': '安徽',
+        'jiangxi': '江西',
+        'hebei': '河北',
+        'beijing': '北京',
+        'fujian': '福建',
+        'zhejiang': '浙江',
+        'jiangsu': '江苏',
+        'shanxi': '山西',
+        'jilin': '吉林',
+        'shaanxi': '陕西',
+        'neimenggu': '内蒙古',
+        'shandong': '山东',
+        'chongqing': '重庆',
+        'hainan': '海南',
+        'liaoning': '辽宁',
+        'gansu': '甘肃',
+        'shanghai': '上海',
+        'guangxi': '广西',
+        'heilongjiang': '黑龙江',
+        'qinghai': '青海',
+        'hubei': '湖北'
+    }
+
+    # 先建立一个EXCEL
+    workbook = xlwt.Workbook()
+    sheet1 = workbook.add_sheet('全国各省市县感染地点')
+
+    # 再将表头写上
+    index = 0
+    sheet1.write(index, 0, '省份')
+    sheet1.write(index, 1, '地市')
+    sheet1.write(index, 2, '县区')
+    sheet1.write(index, 3, '街道')
+    sheet1.write(index, 4, '具体地点')
+    sheet1.write(index, 5, '经纬度')
+    sheet1.write(index, 6, '数据来源')
+    sheet1.write(index, 7, '数据链接')
+    sheet1.write(index, 8, '是否今日数据')
+    index = index + 1
+
+    # 将每个省份字典的数据写入表格
+    get_list(URL, HEADERS, provinceList, sheet1, index)    
+
+    # 保存EXCEL
+    mkdir(PATH)
+    workbook.save(r'%s\\全国各省市县感染地点详情(%s).xls' % (PATH, NOWTIME))
