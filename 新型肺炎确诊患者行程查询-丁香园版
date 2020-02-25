@@ -1,0 +1,113 @@
+import requests
+import os
+import re
+from lxml import etree
+import codecs
+import json
+import pandas as pd
+import xlwt
+import datetime
+# 基本参数
+URL = 'https://2019ncov.133.cn/virus-trip/list'
+HEADERS = {
+    # ':authority': r'2019ncov.133.cn',
+    # ':method': r'GET',
+    # ':path': r'/virus-trip/list',
+    # ':scheme': r'https',
+    'accept': r'*/*',
+    'accept-encoding': r'gzip, deflate, br',
+    'accept-language': r'zh-CN,zh;q=0.9',
+    'referer': r'https://2019ncov.133.cn/virus-trip/Vue/virusTrip/searchResult?searchType=all&searchDate=&travelNumber=&city=',
+    'sec-fetch-mode': r'cors',
+    'sec-fetch-site': r'same-origin',
+    'user-agent': r'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.88 Safari/537.36'
+}
+# DOMAIN = 'http://2019ncov.nosugartech.com'
+NOWTIME = datetime.datetime.strftime(
+    datetime.datetime.now(), '%Y-%m-%d %H-%M-%S')
+NOWTIME_sheet = datetime.datetime.strftime(
+    datetime.datetime.now(), '%Y-%m-%d %H:%M:%S')
+TODAY = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d')
+PATH = r'D:\\海致\excel\\肺炎2020\\%s' % (TODAY)
+
+
+def mkdir(path):
+    # 引入模块
+    import os
+
+    # 去除首位空格
+    path = path.strip()
+    # 去除尾部 \ 符号
+    path = path.rstrip("\\")
+
+    # 判断路径是否存在
+    # 存在     True
+    # 不存在   False
+    isExists = os.path.exists(path)
+
+    # 判断结果
+    if not isExists:
+        # 如果不存在则创建目录
+        # 创建目录操作函数
+        os.makedirs(path)
+        print("创建目录成功")
+        return True
+    else:
+        # 如果目录存在则不创建，并提示目录已存在
+        print("目录已存在")
+        return False
+
+
+def get_list(url, headers):
+    r = requests.get(url, headers=headers)
+    r.encoding = 'utf-8'
+    text = r.text
+    # print(text)
+    resDic = json.loads(text)
+    resData = resDic['data']['list']
+    resData.reverse()
+    # print(type(resData))
+    # print(len(resData))
+    # print(type(resData[0]))
+    # 先建立一个EXCEL
+    workbook = xlwt.Workbook()
+    sheet1 = workbook.add_sheet('新型肺炎确诊患者相同行程查询-丁香园版')
+    # 先将表头写上
+    index = 0
+    sheet1.write(index, 0, '序号')# id: 2148
+    sheet1.write(index, 1, '交通类型')# tripType: "train"
+    sheet1.write(index, 2, '乘坐时间')# tripDate: "2020-01-23"
+    sheet1.write(index, 3, '车次/航班/车牌')# tripNo: "G572"
+    sheet1.write(index, 4, '患者出发地')# tripDepname: "黄冈东"
+    sheet1.write(index, 5, '患者目的地')# tripArrname: "郑州东"
+    sheet1.write(index, 6, '出发时间')# tripDeptime: "2020-01-23 09:53:00"
+    sheet1.write(index, 7, '到达时间')# tripArrtime: "2020-01-23 12:38:00"
+    sheet1.write(index, 8, '座位号/车厢')# carriage: "5号车厢"
+    sheet1.write(index, 9, '详情链接')# link: "https://mp.weixin.qq.com/s/vAP7K76x6btaGWiGgA8RlQ"
+    sheet1.write(index, 10, '数据来源')# publisher: "人民日报"
+    sheet1.write(index, 11, '途经地')# nameIndex: "黄冈东,武汉,驻马店西,漯河西,郑州东"
+    sheet1.write(index, 12, '数据更新时间')# updatetime: "2020-02-07 12:22:19"
+    index = index + 1
+    # 直接遍历数组，每个数组是一个dict
+    for d in resData:
+        sheet1.write(index, 0, d['id'])# id: 2148
+        sheet1.write(index, 1, d['tripType'])# tripType: "train"
+        sheet1.write(index, 2, d['tripDate'])# tripDate: "2020-01-23"
+        sheet1.write(index, 3, d['tripNo'])# tripNo: "G572"
+        sheet1.write(index, 4, d['tripDepname'])# tripDepname: "黄冈东"
+        sheet1.write(index, 5, d['tripArrname'])# tripArrname: "郑州东"
+        sheet1.write(index, 6, d['tripDeptime'])# tripDeptime: "2020-01-23 09:53:00"
+        sheet1.write(index, 7, d['tripArrtime'])# tripArrtime: "2020-01-23 12:38:00"
+        sheet1.write(index, 8, d['carriage'])# carriage: "5号车厢"
+        sheet1.write(index, 9, d['link'])# link: "https://mp.weixin.qq.com/s/vAP7K76x6btaGWiGgA8RlQ"
+        sheet1.write(index, 10, d['publisher'])# publisher: "人民日报"
+        sheet1.write(index, 11, d['nameIndex'])# nameIndex: "黄冈东,武汉,驻马店西,漯河西,郑州东"
+        sheet1.write(index, 12, d['updatetime'])# updatetime: "2020-02-07 12:22:19"
+        index = index + 1    
+    mkdir(PATH)
+    workbook.save(r'%s\\新型肺炎确诊患者相同行程查询-丁香园版(%s).xls' % (PATH, NOWTIME))
+
+
+if __name__ == "__main__":
+
+    get_list(URL, HEADERS)
