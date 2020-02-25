@@ -1,0 +1,130 @@
+import requests
+import os
+import re
+from lxml import etree
+import codecs
+import json
+import pandas as pd
+import xlwt
+import datetime
+# 基本参数
+URL = 'http://2019ncov.nosugartech.com/data.json?438962'
+HEADERS = {
+    'Accept': 'application/json, text/javascript, */*; q=0.01',
+    'Referer': 'http://2019ncov.nosugartech.com/?from=singlemessage&isappinstalled=0',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.88 Safari/537.36',
+    'X-Requested-With': 'XMLHttpRequest',
+}
+DOMAIN = 'http://2019ncov.nosugartech.com'
+NOWTIME = datetime.datetime.strftime(
+    datetime.datetime.now(), '%Y-%m-%d %H-%M-%S')
+TODAY = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d')
+PATH = r'D:\\海致\excel\\肺炎2020\\%s' % (TODAY)
+
+
+def mkdir(path):
+    # 引入模块
+    import os
+
+    # 去除首位空格
+    path = path.strip()
+    # 去除尾部 \ 符号
+    path = path.rstrip("\\")
+
+    # 判断路径是否存在
+    # 存在     True
+    # 不存在   False
+    isExists = os.path.exists(path)
+
+    # 判断结果
+    if not isExists:
+        # 如果不存在则创建目录
+        # 创建目录操作函数        
+        os.makedirs(path)
+        print("创建目录成功")
+        return True
+    else:
+        # 如果目录存在则不创建，并提示目录已存在
+        print("目录已存在")
+        return False
+
+
+def get_list(url, headers):
+    r = requests.get(url, headers=headers)
+    r.encoding = 'utf-8'
+    text = r.text
+    resDic = json.loads(text)
+    resData = resDic['data']
+    # print(type(resData))
+    return resData
+
+
+def save_list(jsonfile):
+    workbook = xlwt.Workbook()
+    sheet1 = workbook.add_sheet('feiyan')
+    ll = list(jsonfile[0].keys())
+    # print(ll)
+    for i in range(0, len(ll)):
+        if ll[i] == 'id':
+            ll[i] = '序号'
+        elif ll[i] == 't_date':
+            ll[i] = '日期'
+        elif ll[i] == 't_start':
+            ll[i] = '开始时间'
+        elif ll[i] == 't_end':
+            ll[i] = '结束时间'
+        elif ll[i] == 't_type':
+            ll[i] = '交通类型'
+        elif ll[i] == 't_no':
+            ll[i] = '车次/车牌/航班号/场所名称'
+        elif ll[i] == 't_no_sub':
+            ll[i] = '车厢'
+        elif ll[i] == 't_pos_start':
+            ll[i] = '出发站'
+        elif ll[i] == 't_pos_end':
+            ll[i] = '到达站'
+        elif ll[i] == 'source':
+            ll[i] = '线索来源地址'
+        elif ll[i] == 'who':
+            ll[i] = '线索来源'
+        # elif ll[i] == 'verified':
+        #     ll[i] = 'dd'
+        elif ll[i] == 'created_at':
+            ll[i] = '提交时间'
+        # elif ll[i] == 'updated_at':
+        #     ll[i] = 'dd'
+        elif ll[i] == 't_memo':
+            ll[i] = '车次附加描述'
+        else:
+            pass
+        sheet1.write(0, i, ll[i])
+    for j in range(0, len(jsonfile)):
+        m = 0
+        ls = list(jsonfile[j].values())
+        for k in ls:
+            if m == 4:
+                if k == 1:
+                    k = '飞机'
+                elif k == 2:
+                    k = '火车'
+                elif k == 3:
+                    k = '地铁'
+                elif k == 4:
+                    k = '长途客车/大巴'
+                elif k == 5:
+                    k = '公交车'
+                elif k == 6:
+                    k = '出租车'
+                elif k == 7:
+                    k = '轮船'
+                elif k == 8:
+                    k = '其他公共场所'
+            sheet1.write(j+1, m, k)
+            m += 1
+    mkdir(PATH)
+    workbook.save(r'%s\\新型肺炎确诊患者相同行程查询(%s).xls' % (PATH, NOWTIME))
+
+
+if __name__ == "__main__":
+
+    save_list(get_list(URL, HEADERS))
