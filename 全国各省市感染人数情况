@@ -1,0 +1,108 @@
+import requests
+import os
+import re
+from lxml import etree
+import codecs
+import json
+import pandas as pd
+import xlwt
+import datetime
+# 基本参数
+URL = 'https://3g.dxy.cn/newh5/view/pneumonia'
+HEADERS = {
+    'Accept': 'application/json, text/javascript, */*; q=0.01',
+    # 'Referer': 'http://2019ncov.nosugartech.com/?from=singlemessage&isappinstalled=0',
+    'User-Agent': 'Mozilla/5.0 (Windows NT 6.1; WOW64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/79.0.3945.88 Safari/537.36'
+    # 'X-Requested-With': 'XMLHttpRequest',
+}
+# DOMAIN = 'http://2019ncov.nosugartech.com'
+NOWTIME = datetime.datetime.strftime(
+    datetime.datetime.now(), '%Y-%m-%d %H-%M-%S')
+NOWTIME_sheet = datetime.datetime.strftime(
+    datetime.datetime.now(), '%Y-%m-%d %H:%M:%S')
+TODAY = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d')
+PATH = r'D:\\海致\excel\\肺炎2020\\%s' % (TODAY)
+
+
+def mkdir(path):
+    # 引入模块
+    import os
+
+    # 去除首位空格
+    path = path.strip()
+    # 去除尾部 \ 符号
+    path = path.rstrip("\\")
+
+    # 判断路径是否存在
+    # 存在     True
+    # 不存在   False
+    isExists = os.path.exists(path)
+
+    # 判断结果
+    if not isExists:
+        # 如果不存在则创建目录
+        # 创建目录操作函数
+        os.makedirs(path)
+        print("创建目录成功")
+        return True
+    else:
+        print("目录已存在")
+        # 如果目录存在则不创建，并提示目录已存在
+        return False
+
+
+def get_list(url, headers):
+    r = requests.get(url, headers=headers)
+    r.encoding = 'utf-8'
+    text = r.text
+    html = etree.HTML(text)
+    # reList ：将每个省份的数据装载到一个数组中，数组中每个元素对应一个省份的数据，每个元素相当于一个JSON字符串(DDSB是自定义的一个标识，随意取，但是一定要唯一)
+    rsData = html.xpath("//script[@id='getAreaStat']//text()")[0]
+    rsData = re.sub(r'^try.*?getAreaStat.*?(?={)|\]}catch.*}$', '', rsData)
+    rsData = 'DDSB' + re.sub(r',(?=\{"pro)', 'DDSB', rsData)
+    reList = re.findall(r'(?<=DDSB).+?(?=DDSB)', rsData)
+    # 将每个省份的数据写入EXCEL中
+    # print(reList[2])
+    # reJson = json.loads(reList[1])
+    # print(reJson)
+    # print(reJson['cities'][0]["cityName"])
+    # 先建立一个EXCEL
+    workbook = xlwt.Workbook()
+    sheet1 = workbook.add_sheet('全国各省市感染人数情况')
+
+    # 先将表头写上
+    index = 0
+    sheet1.write(index, 0, '地区')
+    sheet1.write(index, 1, '确诊')
+    sheet1.write(index, 2, '死亡')
+    sheet1.write(index, 3, '治愈')
+    sheet1.write(index, 4, '省份')
+    sheet1.write(index, 5, '数据爬取时间')
+    index = index + 1
+    # 再针对每个省将数据写入
+    for v in reList:
+        # 先写省的汇总数据
+        jsonv = json.loads(v)
+        sheet1.write(index, 0, jsonv['provinceName'])
+        sheet1.write(index, 1, jsonv['confirmedCount'])
+        sheet1.write(index, 2, jsonv['deadCount'])
+        sheet1.write(index, 3, jsonv['curedCount'])
+        sheet1.write(index, 4, jsonv['provinceName'])
+        sheet1.write(index, 5, NOWTIME_sheet)
+        index = index + 1
+        # 在针对省内各地市单独进行填充
+        for vv in jsonv['cities']:
+            sheet1.write(index, 0, vv['cityName'])
+            sheet1.write(index, 1, vv['confirmedCount'])
+            sheet1.write(index, 2, vv['deadCount'])
+            sheet1.write(index, 3, vv['curedCount'])
+            sheet1.write(index, 4, jsonv['provinceName'])
+            sheet1.write(index, 5, NOWTIME_sheet)
+            index = index + 1
+    mkdir(PATH)
+    workbook.save(r'%s\\全国各省市感染人数情况(%s).xls' % (PATH, NOWTIME))
+
+
+if __name__ == "__main__":
+
+    get_list(URL, HEADERS)
