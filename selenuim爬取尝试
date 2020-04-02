@@ -9,7 +9,9 @@ NOWTIME_sheet = datetime.datetime.strftime(
     datetime.datetime.now(), '%Y-%m-%d %H:%M:%S')
 TODAY = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d')
 
-PATH = r'D:\\学习\\EXCEL\\%s' % (TODAY)
+PATH = r'D:\\PYTHON\\爬虫代码\\selenium\\%s' % (TODAY)
+
+URL = 'http://gs.amac.org.cn/amac-infodisc/res/pof/fund/index.html'
 
 
 def mkdir(path):
@@ -39,34 +41,19 @@ def mkdir(path):
         return False
 
 
-if __name__ == "__main__":
-
-    # 先建立一个EXCEL
-    workbook = xlwt.Workbook()
-    sheet1 = workbook.add_sheet('私募基金公示')
-
-    # 再将表头写上
-    index = 0
-    sheet1.write(index, 0, '编号')
-    sheet1.write(index, 1, '基金名称')
-    sheet1.write(index, 2, '私募基金管理人名称')
-    sheet1.write(index, 3, '托管人名称')
-    sheet1.write(index, 4, '成立时间')
-    sheet1.write(index, 5, '备案时间')
-
-    # index = index + 1
+def getContent(url):
     # 开始驱动浏览器爬虫
     driver_path = r'D:\programapp\chromedriver\chromedriver.exe'
 
     driver = webdriver.Chrome(executable_path=driver_path)
 
-    driver.get('http://gs.amac.org.cn/amac-infodisc/res/pof/fund/index.html')
-    print("已经打开，准备睡5秒")
+    driver.get(url)
 
     # 全屏显示窗口，保证数据均能加载出来
     driver.maximize_window()
 
     # 先关掉弹框，关掉之前先停5秒，等弹框的五秒结束再触发关闭点击事件
+    print("已经打开，准备睡5秒")
     time.sleep(5)
     closeTag = driver.find_element_by_class_name('layui-layer-btn0')
     closeTag.click()
@@ -76,22 +63,62 @@ if __name__ == "__main__":
     hundredTag.click()
 
     time.sleep(5)
-    # 获取内容
+
+    # 创建数据载体
     contents = []
-    for content in driver.find_elements_by_xpath('//tr[@role="row"]/td'):
-        contents.append(content.text)
+
+    # 获取第一页内容
+    for element in driver.find_elements_by_xpath('//tr[@role="row"]/td'):
+        contents.append(element.text)
+
+    # 接着获取十页数据
+    for i in range(10):
+        # 点击下一页，并获取对应内容
+        nextPageTag = driver.find_element_by_xpath(
+            "//a[@class='paginate_button next']")
+        nextPageTag.click()
+
+        print("正在爬取第", (i + 2), "页")
+
+        # 等五秒
+        time.sleep(5)
+        for element in driver.find_elements_by_xpath('//tr[@role="row"]/td'):
+            contents.append(element.text)
+    # 返回数据载体
+    print("数据获取完毕，准备关闭网页")
+    driver.quit()
+
+    return contents
+
+
+if __name__ == "__main__":
+
+    # 先建立一个EXCEL
+    workbook = xlwt.Workbook()
+    sheet1 = workbook.add_sheet('私募基金公示')
+
+    # 再将表头写上
+    index = 0
+    page = 0
+    sheet1.write(index, 0, '编号')
+    sheet1.write(index, 1, '基金名称')
+    sheet1.write(index, 2, '私募基金管理人名称')
+    sheet1.write(index, 3, '托管人名称')
+    sheet1.write(index, 4, '成立时间')
+    sheet1.write(index, 5, '备案时间')
+
+    # 获取爬虫数据
+    contents = getContent(URL)
     print(contents)
 
     # 将数据写入excel
-    innerIndex = 0
     for i, v in enumerate(contents):
-        if i % 6 ==0:
+        if i % 6 == 0:
             index = index + 1
         sheet1.write(index, i % 6, v)
-        
-    
+
     # 保存EXCEL
     mkdir(PATH)
     workbook.save(r'%s\\私募基金公示(%s).xls' % (PATH, NOWTIME))
 
-    driver.quit()
+    print("保存完毕 ")
