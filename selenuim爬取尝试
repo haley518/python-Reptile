@@ -1,0 +1,97 @@
+from selenium import webdriver
+import time
+import xlwt
+import datetime
+
+NOWTIME = datetime.datetime.strftime(
+    datetime.datetime.now(), '%Y-%m-%d %H-%M-%S')
+NOWTIME_sheet = datetime.datetime.strftime(
+    datetime.datetime.now(), '%Y-%m-%d %H:%M:%S')
+TODAY = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d')
+
+PATH = r'D:\\学习\\EXCEL\\%s' % (TODAY)
+
+
+def mkdir(path):
+    # 引入模块
+    import os
+
+    # 去除首位空格
+    path = path.strip()
+    # 去除尾部 \ 符号
+    path = path.rstrip("\\")
+
+    # 判断路径是否存在
+    # 存在     True
+    # 不存在   False
+    isExists = os.path.exists(path)
+
+    # 判断结果
+    if not isExists:
+        # 如果不存在则创建目录
+        # 创建目录操作函数
+        os.makedirs(path)
+        print("创建目录成功")
+        return True
+    else:
+        # 如果目录存在则不创建，并提示目录已存在
+        print("目录已存在")
+        return False
+
+
+if __name__ == "__main__":
+
+    # 先建立一个EXCEL
+    workbook = xlwt.Workbook()
+    sheet1 = workbook.add_sheet('私募基金公示')
+
+    # 再将表头写上
+    index = 0
+    sheet1.write(index, 0, '编号')
+    sheet1.write(index, 1, '基金名称')
+    sheet1.write(index, 2, '私募基金管理人名称')
+    sheet1.write(index, 3, '托管人名称')
+    sheet1.write(index, 4, '成立时间')
+    sheet1.write(index, 5, '备案时间')
+
+    # index = index + 1
+    # 开始驱动浏览器爬虫
+    driver_path = r'D:\programapp\chromedriver\chromedriver.exe'
+
+    driver = webdriver.Chrome(executable_path=driver_path)
+
+    driver.get('http://gs.amac.org.cn/amac-infodisc/res/pof/fund/index.html')
+    print("已经打开，准备睡5秒")
+
+    # 全屏显示窗口，保证数据均能加载出来
+    driver.maximize_window()
+
+    # 先关掉弹框，关掉之前先停5秒，等弹框的五秒结束再触发关闭点击事件
+    time.sleep(5)
+    closeTag = driver.find_element_by_class_name('layui-layer-btn0')
+    closeTag.click()
+
+    # 选中下拉框100
+    hundredTag = driver.find_element_by_xpath('//select//option[@value="100"]')
+    hundredTag.click()
+
+    time.sleep(5)
+    # 获取内容
+    contents = []
+    for content in driver.find_elements_by_xpath('//tr[@role="row"]/td'):
+        contents.append(content.text)
+    print(contents)
+
+    # 将数据写入excel
+    innerIndex = 0
+    for i, v in enumerate(contents):
+        if i % 6 ==0:
+            index = index + 1
+        sheet1.write(index, i % 6, v)
+        
+    
+    # 保存EXCEL
+    mkdir(PATH)
+    workbook.save(r'%s\\私募基金公示(%s).xls' % (PATH, NOWTIME))
+
+    driver.quit()
